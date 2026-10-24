@@ -1,0 +1,13 @@
+<app-topbar (alternarMenu)="alternarMenu()"></app-topbar>
+
+<div class="flex">
+  <app-sidebar [aberto]="menuAberto()" (fechar)="menuAberto.set(false)"></app-sidebar>
+
+  <main id="conteudo" class="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">
+    <div class="mx-auto max-w-[1400px]">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>
+
+<app-avisos></app-avisos>
