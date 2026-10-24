@@ -1,6 +1,5 @@
-// Produção: o workflow deploy-client-azure.yml reescreve este arquivo com a URL pública da API
-// (variável API_URL do GitHub). Para publicar manualmente, informe aqui a URL https da API,
-// por exemplo 'https://notekeeper-api.azurewebsites.net' (sem barra no final).
+// Produção: o client é publicado dentro do wwwroot da própria API (mesma origem), então as
+// chamadas usam caminhos relativos e urlApi fica vazio. Não precisa de CORS.
 export const environment = {
   urlApi: '',
 };
