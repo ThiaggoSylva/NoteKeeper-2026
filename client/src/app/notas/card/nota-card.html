@@ -1,0 +1,80 @@
+<article
+  class="group relative mb-4 break-inside-avoid rounded-3xl border p-5 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-lift"
+  [class]="cor().fundo + ' ' + cor().borda"
+  [class.opacity-60]="processando()"
+>
+  <button
+    type="button"
+    class="block w-full rounded-xl text-left"
+    [attr.aria-label]="'Editar nota ' + nota().titulo"
+    (click)="editar.emit(nota())"
+  >
+    <h3 class="font-display text-lg leading-snug font-semibold break-words text-ink">
+      {{ nota().titulo }}
+    </h3>
+
+    @if (nota().descricao) {
+      <p class="mt-2 line-clamp-8 text-sm leading-6 break-words whitespace-pre-line text-ink-soft">
+        {{ nota().descricao }}
+      </p>
+    }
+  </button>
+
+  @if (nota().categorias.length > 0) {
+    <ul class="mt-4 flex flex-wrap gap-1.5" aria-label="Categorias">
+      @for (categoria of nota().categorias; track categoria.id) {
+        <li class="chip max-w-full text-ink-soft" [class]="cor().chip">
+          <svg lucideTag class="size-3 shrink-0" aria-hidden="true"></svg>
+          <span class="truncate">{{ categoria.titulo }}</span>
+        </li>
+      }
+    </ul>
+  }
+
+  <div class="mt-4 flex items-center justify-between gap-2">
+    <span class="text-xs font-medium text-ink-mute">
+      {{ arquivada() ? 'Arquivada' : 'Atualizada' }} · {{ formatarData(nota().atualizadoEm) }}
+    </span>
+
+    <div
+      class="flex items-center gap-0.5 transition sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+    >
+      <button
+        type="button"
+        class="botao-icone"
+        [attr.aria-label]="arquivada() ? 'Desarquivar nota' : 'Arquivar nota'"
+        [title]="arquivada() ? 'Desarquivar' : 'Arquivar'"
+        [disabled]="processando()"
+        (click)="alternarArquivamento.emit(nota())"
+      >
+        @if (arquivada()) {
+          <svg lucideArchiveRestore class="size-[18px]" aria-hidden="true"></svg>
+        } @else {
+          <svg lucideArchive class="size-[18px]" aria-hidden="true"></svg>
+        }
+      </button>
+
+      <button
+        type="button"
+        class="botao-icone"
+        aria-label="Editar nota"
+        title="Editar"
+        [disabled]="processando()"
+        (click)="editar.emit(nota())"
+      >
+        <svg lucidePencil class="size-[18px]" aria-hidden="true"></svg>
+      </button>
+
+      <button
+        type="button"
+        class="botao-icone hover:!text-rose-700"
+        aria-label="Excluir nota"
+        title="Excluir"
+        [disabled]="processando()"
+        (click)="excluir.emit(nota())"
+      >
+        <svg lucideTrash2 class="size-[18px]" aria-hidden="true"></svg>
+      </button>
+    </div>
+  </div>
+</article>

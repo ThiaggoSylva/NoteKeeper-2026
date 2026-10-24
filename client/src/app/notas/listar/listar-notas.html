@@ -1,0 +1,141 @@
+<header class="mb-6">
+  <p class="mb-1 text-xs font-bold tracking-widest text-orchid-600 uppercase">
+    {{ arquivadas ? 'Guardadas com carinho' : 'Suas ideias' }}
+  </p>
+
+  <div class="flex flex-wrap items-end gap-x-4 gap-y-1">
+    <h1 class="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+      {{ arquivadas ? 'Notas arquivadas' : 'Minhas notas' }}
+    </h1>
+
+    @if (!carregando() && !mensagemErro()) {
+      <span class="mb-1.5 rounded-full bg-orchid-100 px-3 py-1 text-xs font-bold text-orchid-800">
+        {{ notasVisiveis().length }}
+        {{ notasVisiveis().length === 1 ? 'nota' : 'notas' }}
+      </span>
+    }
+  </div>
+</header>
+
+@if (!arquivadas) {
+  <app-criador-nota (criada)="notaCriada($event)"></app-criador-nota>
+}
+
+@if (categoriasFiltradas().length > 0 || buscaService.termo().trim()) {
+  <div class="mb-6 flex flex-wrap items-center gap-2" aria-label="Filtros ativos">
+    <span class="text-xs font-bold tracking-widest text-ink-mute uppercase">Filtrando por</span>
+
+    @for (categoria of categoriasFiltradas(); track categoria.id) {
+      <button
+        type="button"
+        class="chip border-orchid-200 bg-orchid-100 text-orchid-800 hover:bg-orchid-200"
+        [attr.aria-label]="'Remover filtro ' + categoria.titulo"
+        (click)="removerFiltro(categoria.id)"
+      >
+        {{ categoria.titulo }}
+        <svg lucideX class="size-3.5" aria-hidden="true"></svg>
+      </button>
+    }
+
+    @if (buscaService.termo().trim()) {
+      <span class="chip border-line bg-white text-ink-soft">“{{ buscaService.termo().trim() }}”</span>
+    }
+
+    <button type="button" class="botao-suave px-3 py-1.5 text-xs" (click)="limparFiltros()">
+      <svg lucideFilterX class="size-3.5" aria-hidden="true"></svg>
+      Limpar tudo
+    </button>
+  </div>
+}
+
+@if (mensagemErro()) {
+  <div class="alerta-erro mx-auto flex max-w-xl flex-col items-start gap-3" role="alert">
+    <span>{{ mensagemErro() }}</span>
+
+    <button type="button" class="botao-suave bg-white" (click)="tentarNovamente()">
+      <svg lucideRefreshCw class="size-4" aria-hidden="true"></svg>
+      Tentar novamente
+    </button>
+  </div>
+} @else if (carregando()) {
+  <div class="columns-1 gap-4 sm:columns-2 xl:columns-3 2xl:columns-4" aria-busy="true" aria-label="Carregando notas">
+    @for (altura of ['h-32', 'h-48', 'h-40', 'h-56', 'h-36', 'h-44']; track $index) {
+      <div class="mb-4 break-inside-avoid animate-pulse rounded-3xl border border-line bg-white/70 p-5 {{ altura }}">
+        <div class="h-4 w-2/3 rounded-full bg-orchid-100"></div>
+        <div class="mt-4 h-3 w-full rounded-full bg-orchid-50"></div>
+        <div class="mt-2 h-3 w-5/6 rounded-full bg-orchid-50"></div>
+      </div>
+    }
+  </div>
+} @else if (notasVisiveis().length === 0) {
+  <div class="mx-auto mt-6 flex max-w-md flex-col items-center text-center">
+    <span
+      class="mb-5 grid size-20 place-items-center rounded-[1.75rem] bg-gradient-to-br from-note-lilac to-note-peach text-orchid-700 shadow-soft"
+      aria-hidden="true"
+    >
+      @if (temFiltro()) {
+        <svg lucideSearchX class="size-9" strokeWidth="1.6"></svg>
+      } @else if (arquivadas) {
+        <svg lucideArchive class="size-9" strokeWidth="1.6"></svg>
+      } @else {
+        <svg lucideSparkles class="size-9" strokeWidth="1.6"></svg>
+      }
+    </span>
+
+    <h2 class="font-display text-2xl font-semibold text-ink">
+      @if (temFiltro()) {
+        Nenhuma nota encontrada
+      } @else if (arquivadas) {
+        Nada arquivado por aqui
+      } @else {
+        Sua primeira ideia começa aqui
+      }
+    </h2>
+
+    <p class="mt-2 text-sm leading-6 text-ink-soft">
+      @if (temFiltro()) {
+        Tente outro termo de busca ou remova alguma categoria do filtro.
+      } @else if (arquivadas) {
+        Notas arquivadas ficam guardadas aqui sem atrapalhar a lista principal.
+      } @else {
+        Use o campo acima para criar uma nota e organize tudo por categorias.
+      }
+    </p>
+
+    @if (temFiltro()) {
+      <button type="button" class="botao-primario mt-5" (click)="limparFiltros()">Limpar filtros</button>
+    }
+  </div>
+} @else {
+  <div class="columns-1 gap-4 sm:columns-2 xl:columns-3 2xl:columns-4">
+    @for (nota of notasVisiveis(); track nota.id) {
+      <app-nota-card
+        [nota]="nota"
+        [processando]="notaProcessando() === nota.id"
+        (editar)="notaEmEdicao.set($event)"
+        (alternarArquivamento)="alternarArquivamento($event)"
+        (excluir)="pedirExclusao($event)"
+      ></app-nota-card>
+    }
+  </div>
+}
+
+@if (notaEmEdicao(); as nota) {
+  <app-editor-nota
+    [nota]="nota"
+    (salva)="notaSalva($event)"
+    (excluir)="pedirExclusao($event)"
+    (fechar)="notaEmEdicao.set(null)"
+  ></app-editor-nota>
+}
+
+@if (notaParaExcluir(); as nota) {
+  <app-confirmar-dialog
+    titulo="Excluir esta nota?"
+    [mensagem]="'“' + nota.titulo + '” será removida para sempre. Essa ação não pode ser desfeita.'"
+    rotuloConfirmar="Excluir nota"
+    [processando]="excluindo()"
+    (confirmar)="confirmarExclusao()"
+    (cancelar)="notaParaExcluir.set(null)"
+  ></app-confirmar-dialog>
+}
