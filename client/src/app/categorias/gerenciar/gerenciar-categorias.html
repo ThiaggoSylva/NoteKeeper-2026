@@ -1,0 +1,186 @@
+<header class="mb-8">
+  <p class="mb-1 text-xs font-bold tracking-widest text-orchid-600 uppercase">Organização</p>
+  <h1 class="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Categorias</h1>
+  <p class="mt-2 max-w-xl text-sm leading-6 text-ink-soft">
+    Crie categorias para agrupar suas notas e filtre por elas no menu lateral. Excluir uma categoria
+    não apaga as notas: elas só deixam de ter essa categoria.
+  </p>
+</header>
+
+<div class="mx-auto max-w-2xl">
+  <form
+    (submit)="criar($event)"
+    novalidate
+    class="mb-6 rounded-3xl border border-line bg-white/90 p-4 shadow-soft"
+  >
+    <label for="nova-categoria" class="mb-2 block text-sm font-semibold text-ink">Nova categoria</label>
+
+    <div class="flex flex-col gap-3 sm:flex-row">
+      <div class="flex-1">
+        <input
+          id="nova-categoria"
+          type="text"
+          autocomplete="off"
+          placeholder="Ex.: Trabalho, Estudos, Receitas"
+          class="campo"
+          [formField]="formularioNova.titulo"
+          [attr.aria-invalid]="formularioNova.titulo().touched() && formularioNova.titulo().invalid()"
+          [attr.aria-describedby]="
+            formularioNova.titulo().touched() && formularioNova.titulo().invalid()
+              ? 'nova-categoria-erro'
+              : null
+          "
+        />
+      </div>
+
+      <button
+        type="submit"
+        class="botao-primario sm:min-w-36"
+        [disabled]="criando()"
+        [attr.aria-busy]="criando()"
+      >
+        @if (criando()) {
+          <svg lucideLoaderCircle class="size-4 animate-spin" aria-hidden="true"></svg>
+        } @else {
+          <svg lucidePlus class="size-4" strokeWidth="2.5" aria-hidden="true"></svg>
+        }
+        Adicionar
+      </button>
+    </div>
+
+    @if (formularioNova.titulo().touched() && formularioNova.titulo().invalid()) {
+      <p id="nova-categoria-erro" class="mt-2 text-sm text-rose-700">
+        {{ formularioNova.titulo().errors()[0].message }}
+      </p>
+    }
+
+    @if (erroCriacao()) {
+      <div class="alerta-erro mt-3" role="alert">{{ erroCriacao() }}</div>
+    }
+  </form>
+
+  @if (!categoriasService.carregadas()) {
+    <div class="space-y-3" aria-busy="true" aria-label="Carregando categorias">
+      @for (item of [1, 2, 3]; track item) {
+        <div class="h-16 animate-pulse rounded-2xl border border-line bg-white/70"></div>
+      }
+    </div>
+  } @else if (categoriasService.categorias().length === 0) {
+    <div class="flex flex-col items-center py-10 text-center">
+      <span
+        class="mb-5 grid size-20 place-items-center rounded-[1.75rem] bg-gradient-to-br from-note-sage to-note-sky text-orchid-700 shadow-soft"
+        aria-hidden="true"
+      >
+        <svg lucideTag class="size-9" strokeWidth="1.6"></svg>
+      </span>
+      <h2 class="font-display text-2xl font-semibold text-ink">Nenhuma categoria ainda</h2>
+      <p class="mt-2 max-w-sm text-sm leading-6 text-ink-soft">
+        Comece criando a primeira acima. Depois é só marcá-la ao escrever uma nota.
+      </p>
+    </div>
+  } @else {
+    <ul class="space-y-2.5">
+      @for (categoria of categoriasService.categorias(); track categoria.id) {
+        <li
+          class="rounded-2xl border border-line bg-white/90 px-4 py-3 shadow-soft transition hover:border-orchid-200"
+        >
+          @if (editandoId() === categoria.id) {
+            <form (submit)="salvarEdicao($event, categoria)" novalidate>
+              <div class="flex items-center gap-2">
+                <label [for]="'editar-' + categoria.id" class="sr-only">Título da categoria</label>
+
+                <input
+                  [id]="'editar-' + categoria.id"
+                  type="text"
+                  autocomplete="off"
+                  class="campo py-2"
+                  [formField]="formularioEdicao.titulo"
+                  [attr.aria-invalid]="formularioEdicao.titulo().touched() && formularioEdicao.titulo().invalid()"
+                />
+
+                <button
+                  type="submit"
+                  class="botao-icone bg-orchid-100 text-orchid-800"
+                  aria-label="Salvar categoria"
+                  [disabled]="salvandoEdicao()"
+                >
+                  @if (salvandoEdicao()) {
+                    <svg lucideLoaderCircle class="size-4 animate-spin" aria-hidden="true"></svg>
+                  } @else {
+                    <svg lucideCheck class="size-4" strokeWidth="2.5" aria-hidden="true"></svg>
+                  }
+                </button>
+
+                <button
+                  type="button"
+                  class="botao-icone"
+                  aria-label="Cancelar edição"
+                  [disabled]="salvandoEdicao()"
+                  (click)="cancelarEdicao()"
+                >
+                  <svg lucideX class="size-4" aria-hidden="true"></svg>
+                </button>
+              </div>
+
+              @if (formularioEdicao.titulo().touched() && formularioEdicao.titulo().invalid()) {
+                <p class="mt-2 text-sm text-rose-700">
+                  {{ formularioEdicao.titulo().errors()[0].message }}
+                </p>
+              }
+
+              @if (erroEdicao()) {
+                <div class="alerta-erro mt-3" role="alert">{{ erroEdicao() }}</div>
+              }
+            </form>
+          } @else {
+            <div class="flex items-center gap-3">
+              <span
+                class="grid size-9 shrink-0 place-items-center rounded-xl bg-orchid-100 text-orchid-700"
+                aria-hidden="true"
+              >
+                <svg lucideTag class="size-4"></svg>
+              </span>
+
+              <span class="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                {{ categoria.titulo }}
+              </span>
+
+              <div class="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  class="botao-icone"
+                  [attr.aria-label]="'Editar categoria ' + categoria.titulo"
+                  title="Editar"
+                  (click)="iniciarEdicao(categoria)"
+                >
+                  <svg lucidePencil class="size-[18px]" aria-hidden="true"></svg>
+                </button>
+
+                <button
+                  type="button"
+                  class="botao-icone hover:!text-rose-700"
+                  [attr.aria-label]="'Excluir categoria ' + categoria.titulo"
+                  title="Excluir"
+                  (click)="categoriaParaExcluir.set(categoria)"
+                >
+                  <svg lucideTrash2 class="size-[18px]" aria-hidden="true"></svg>
+                </button>
+              </div>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+@if (categoriaParaExcluir(); as categoria) {
+  <app-confirmar-dialog
+    titulo="Excluir esta categoria?"
+    [mensagem]="'A categoria “' + categoria.titulo + '” será removida. As notas continuam existindo, só deixam de ter essa categoria.'"
+    rotuloConfirmar="Excluir categoria"
+    [processando]="excluindo()"
+    (confirmar)="confirmarExclusao()"
+    (cancelar)="categoriaParaExcluir.set(null)"
+  ></app-confirmar-dialog>
+}
