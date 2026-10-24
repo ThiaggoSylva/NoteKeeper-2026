@@ -1,0 +1,110 @@
+<div class="mb-8">
+  <p class="mb-3 text-xs font-bold tracking-widest text-orchid-600 uppercase">Bem-vindo de volta</p>
+  <h2
+    #tituloPagina
+    tabindex="-1"
+    class="font-display text-3xl font-semibold tracking-tight text-ink focus:outline-none"
+  >
+    Entre na sua conta
+  </h2>
+  <p class="mt-2 text-sm leading-6 text-ink-soft">
+    Acesse suas notas e categorias de qualquer lugar.
+  </p>
+</div>
+
+@if (mensagemSucesso()) {
+  <div class="alerta-sucesso mb-5" role="status">{{ mensagemSucesso() }}</div>
+}
+
+@if (mensagemErro()) {
+  <div class="alerta-erro mb-5" role="alert">{{ mensagemErro() }}</div>
+}
+
+<form (submit)="enviarFormulario($event)" novalidate class="space-y-5">
+  <div>
+    <label for="login-email" class="mb-2 block text-sm font-semibold text-ink">E-mail</label>
+
+    <input
+      id="login-email"
+      type="email"
+      autocomplete="email"
+      inputmode="email"
+      class="campo"
+      placeholder="voce@exemplo.com"
+      [formField]="formularioLogin.email"
+      [attr.aria-invalid]="formularioLogin.email().touched() && formularioLogin.email().invalid()"
+      [attr.aria-describedby]="
+        formularioLogin.email().touched() && formularioLogin.email().invalid() ? 'login-email-erro' : null
+      "
+    />
+
+    @if (formularioLogin.email().touched() && formularioLogin.email().invalid()) {
+      <p id="login-email-erro" class="mt-1.5 text-sm text-rose-700">
+        {{ formularioLogin.email().errors()[0].message }}
+      </p>
+    }
+  </div>
+
+  <div>
+    <label for="login-senha" class="mb-2 block text-sm font-semibold text-ink">Senha</label>
+
+    <div class="relative">
+      <input
+        id="login-senha"
+        [type]="mostrarSenha() ? 'text' : 'password'"
+        autocomplete="current-password"
+        class="campo pr-12"
+        placeholder="Sua senha"
+        [formField]="formularioLogin.senha"
+        [attr.aria-invalid]="formularioLogin.senha().touched() && formularioLogin.senha().invalid()"
+        [attr.aria-describedby]="
+          formularioLogin.senha().touched() && formularioLogin.senha().invalid() ? 'login-senha-erro' : null
+        "
+      />
+
+      <button
+        type="button"
+        class="botao-icone absolute top-1/2 right-2 size-8 -translate-y-1/2"
+        [attr.aria-label]="mostrarSenha() ? 'Ocultar senha' : 'Mostrar senha'"
+        [attr.aria-pressed]="mostrarSenha()"
+        (click)="mostrarSenha.set(!mostrarSenha())"
+      >
+        @if (mostrarSenha()) {
+          <svg lucideEyeOff class="size-4" aria-hidden="true"></svg>
+        } @else {
+          <svg lucideEye class="size-4" aria-hidden="true"></svg>
+        }
+      </button>
+    </div>
+
+    @if (formularioLogin.senha().touched() && formularioLogin.senha().invalid()) {
+      <p id="login-senha-erro" class="mt-1.5 text-sm text-rose-700">
+        {{ formularioLogin.senha().errors()[0].message }}
+      </p>
+    }
+  </div>
+
+  <button
+    type="submit"
+    class="botao-primario w-full py-3.5"
+    [disabled]="enviandoFormulario()"
+    [attr.aria-busy]="enviandoFormulario()"
+  >
+    @if (enviandoFormulario()) {
+      <svg lucideLoaderCircle class="size-4 animate-spin" aria-hidden="true"></svg>
+      Entrando...
+    } @else {
+      Entrar
+      <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+    }
+  </button>
+</form>
+
+<p class="mt-7 text-center text-sm text-ink-soft">
+  Ainda não tem uma conta?
+  <a
+    routerLink="/auth/cadastro"
+    class="font-semibold text-orchid-700 underline decoration-orchid-300 underline-offset-4 hover:text-orchid-900"
+    >Criar conta</a
+  >
+</p>
