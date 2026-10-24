@@ -1,0 +1,112 @@
+<section aria-label="Criar nota" class="mx-auto mb-8 w-full max-w-2xl">
+  @if (!expandido()) {
+    <button
+      type="button"
+      class="group flex w-full items-center justify-between gap-3 rounded-full border border-line bg-white/90 px-6 py-4 text-left text-sm font-medium text-ink-mute shadow-soft transition hover:border-orchid-300 hover:shadow-lift"
+      (click)="abrir()"
+    >
+      <span>Criar uma nota...</span>
+
+      <span
+        class="grid size-8 place-items-center rounded-full bg-orchid-100 text-orchid-700 transition group-hover:bg-orchid-600 group-hover:text-white"
+        aria-hidden="true"
+      >
+        <svg lucidePlus class="size-4" strokeWidth="2.5"></svg>
+      </span>
+    </button>
+  } @else {
+    <form
+      (submit)="salvar($event)"
+      novalidate
+      class="space-y-4 rounded-3xl border border-orchid-200 bg-white p-5 shadow-lift"
+    >
+      @if (mensagemErro()) {
+        <div class="alerta-erro" role="alert">{{ mensagemErro() }}</div>
+      }
+
+      <div>
+        <label for="nova-nota-titulo" class="sr-only">Título da nota</label>
+        <input
+          #campoTitulo
+          id="nova-nota-titulo"
+          type="text"
+          autocomplete="off"
+          placeholder="Título"
+          class="w-full border-0 bg-transparent px-1 py-1 font-display text-xl font-semibold text-ink outline-none placeholder:text-ink-mute aria-[invalid=true]:placeholder:text-rose-400"
+          [formField]="formularioNota.titulo"
+          [attr.aria-invalid]="formularioNota.titulo().touched() && formularioNota.titulo().invalid()"
+          [attr.aria-describedby]="
+            formularioNota.titulo().touched() && formularioNota.titulo().invalid()
+              ? 'nova-nota-titulo-erro'
+              : null
+          "
+        />
+
+        @if (formularioNota.titulo().touched() && formularioNota.titulo().invalid()) {
+          <p id="nova-nota-titulo-erro" class="mt-1 px-1 text-sm text-rose-700">
+            {{ formularioNota.titulo().errors()[0].message }}
+          </p>
+        }
+      </div>
+
+      <div>
+        <label for="nova-nota-descricao" class="sr-only">Descrição da nota</label>
+        <textarea
+          id="nova-nota-descricao"
+          rows="4"
+          placeholder="Escreva sua anotação..."
+          class="w-full resize-none border-0 bg-transparent px-1 py-1 text-sm leading-6 text-ink outline-none placeholder:text-ink-mute"
+          [formField]="formularioNota.descricao"
+          [attr.aria-invalid]="
+            formularioNota.descricao().touched() && formularioNota.descricao().invalid()
+          "
+          [attr.aria-describedby]="'nova-nota-contador'"
+        ></textarea>
+
+        <div class="flex items-center justify-between px-1">
+          @if (formularioNota.descricao().touched() && formularioNota.descricao().invalid()) {
+            <p class="text-sm text-rose-700">{{ formularioNota.descricao().errors()[0].message }}</p>
+          } @else {
+            <span></span>
+          }
+
+          <span
+            id="nova-nota-contador"
+            class="text-xs font-medium"
+            [class]="modeloNota().descricao.length > descricaoMaxima ? 'text-rose-700' : 'text-ink-mute'"
+          >
+            {{ modeloNota().descricao.length }}/{{ descricaoMaxima }}
+          </span>
+        </div>
+      </div>
+
+      <div class="border-t border-line pt-4">
+        <p class="mb-2 text-xs font-bold tracking-widest text-ink-mute uppercase">Categorias</p>
+
+        <app-seletor-categorias
+          [categorias]="categoriasService.categorias()"
+          [selecionadas]="categoriaIds()"
+          (alterar)="categoriaIds.set($event)"
+        ></app-seletor-categorias>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button type="button" class="botao-suave" [disabled]="enviandoFormulario()" (click)="fechar()">
+          Cancelar
+        </button>
+
+        <button
+          type="submit"
+          class="botao-primario"
+          [disabled]="enviandoFormulario()"
+          [attr.aria-busy]="enviandoFormulario()"
+        >
+          @if (enviandoFormulario()) {
+            <svg lucideLoaderCircle class="size-4 animate-spin" aria-hidden="true"></svg>
+          }
+          Salvar nota
+        </button>
+      </div>
+    </form>
+  }
+</section>

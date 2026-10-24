@@ -1,0 +1,150 @@
+<div class="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4">
+  <div class="fixed inset-0 bg-ink/40 backdrop-blur-sm" aria-hidden="true" (click)="fechar.emit()"></div>
+
+  <form
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="editor-titulo-janela"
+    novalidate
+    class="relative my-auto w-full max-w-xl space-y-4 rounded-3xl border p-6 shadow-lift"
+    [class]="cor().fundo + ' ' + cor().borda"
+    (submit)="salvar($event)"
+  >
+    <div class="flex items-center justify-between gap-3">
+      <h2
+        id="editor-titulo-janela"
+        class="flex items-center gap-2 text-xs font-bold tracking-widest text-ink-soft uppercase"
+      >
+        <svg lucideNotebookPen class="size-4" aria-hidden="true"></svg>
+        Editar nota
+      </h2>
+
+      <button type="button" class="botao-icone" aria-label="Fechar" (click)="fechar.emit()">
+        <svg lucideX class="size-5" aria-hidden="true"></svg>
+      </button>
+    </div>
+
+    @if (mensagemErro()) {
+      <div class="alerta-erro" role="alert">{{ mensagemErro() }}</div>
+    }
+
+    <div>
+      <label for="editor-titulo" class="sr-only">Título da nota</label>
+      <input
+        #campoTitulo
+        id="editor-titulo"
+        type="text"
+        autocomplete="off"
+        placeholder="Título"
+        class="w-full rounded-xl border-0 bg-white/50 px-3 py-2 font-display text-xl font-semibold text-ink outline-none placeholder:text-ink-mute focus:bg-white/80 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-rose-400"
+        [formField]="formularioEdicao.titulo"
+        [attr.aria-invalid]="formularioEdicao.titulo().touched() && formularioEdicao.titulo().invalid()"
+        [attr.aria-describedby]="
+          formularioEdicao.titulo().touched() && formularioEdicao.titulo().invalid()
+            ? 'editor-titulo-erro'
+            : null
+        "
+      />
+
+      @if (formularioEdicao.titulo().touched() && formularioEdicao.titulo().invalid()) {
+        <p id="editor-titulo-erro" class="mt-1 px-1 text-sm text-rose-700">
+          {{ formularioEdicao.titulo().errors()[0].message }}
+        </p>
+      }
+    </div>
+
+    <div>
+      <label for="editor-descricao" class="sr-only">Descrição da nota</label>
+      <textarea
+        id="editor-descricao"
+        rows="6"
+        placeholder="Escreva sua anotação..."
+        class="w-full resize-none rounded-xl border-0 bg-white/50 px-3 py-2 text-sm leading-6 text-ink outline-none placeholder:text-ink-mute focus:bg-white/80 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-rose-400"
+        [formField]="formularioEdicao.descricao"
+        [attr.aria-invalid]="formularioEdicao.descricao().touched() && formularioEdicao.descricao().invalid()"
+      ></textarea>
+
+      <div class="flex items-center justify-between px-1 pt-1">
+        @if (formularioEdicao.descricao().touched() && formularioEdicao.descricao().invalid()) {
+          <p class="text-sm text-rose-700">{{ formularioEdicao.descricao().errors()[0].message }}</p>
+        } @else {
+          <span></span>
+        }
+
+        <span
+          class="text-xs font-medium"
+          [class]="modeloEdicao().descricao.length > descricaoMaxima ? 'text-rose-700' : 'text-ink-soft'"
+        >
+          {{ modeloEdicao().descricao.length }}/{{ descricaoMaxima }}
+        </span>
+      </div>
+    </div>
+
+    <div>
+      <p class="mb-2 text-xs font-bold tracking-widest text-ink-soft uppercase">Status</p>
+
+      <div class="inline-flex rounded-full bg-white/60 p-1" role="group" aria-label="Status da nota">
+        <button
+          type="button"
+          class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
+          [class]="status() === 'Ativa' ? 'bg-orchid-600 text-white shadow-soft' : 'text-ink-soft hover:text-orchid-800'"
+          [attr.aria-pressed]="status() === 'Ativa'"
+          (click)="status.set('Ativa')"
+        >
+          Ativa
+        </button>
+
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition"
+          [class]="status() === 'Arquivada' ? 'bg-orchid-600 text-white shadow-soft' : 'text-ink-soft hover:text-orchid-800'"
+          [attr.aria-pressed]="status() === 'Arquivada'"
+          (click)="status.set('Arquivada')"
+        >
+          <svg lucideArchive class="size-3.5" aria-hidden="true"></svg>
+          Arquivada
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <p class="mb-2 text-xs font-bold tracking-widest text-ink-soft uppercase">Categorias</p>
+
+      <app-seletor-categorias
+        [categorias]="categoriasService.categorias()"
+        [selecionadas]="categoriaIds()"
+        (alterar)="categoriaIds.set($event)"
+      ></app-seletor-categorias>
+    </div>
+
+    <div class="flex items-center justify-between gap-2 pt-2">
+      <button
+        type="button"
+        class="botao-suave hover:!bg-rose-100 hover:!text-rose-700"
+        [disabled]="enviandoFormulario()"
+        (click)="excluir.emit(nota())"
+      >
+        <svg lucideTrash2 class="size-4" aria-hidden="true"></svg>
+        Excluir
+      </button>
+
+      <div class="flex gap-2">
+        <button type="button" class="botao-suave" [disabled]="enviandoFormulario()" (click)="fechar.emit()">
+          Cancelar
+        </button>
+
+        <button
+          type="submit"
+          class="botao-primario"
+          [disabled]="enviandoFormulario()"
+          [attr.aria-busy]="enviandoFormulario()"
+        >
+          @if (enviandoFormulario()) {
+            <svg lucideLoaderCircle class="size-4 animate-spin" aria-hidden="true"></svg>
+          }
+          Salvar
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
