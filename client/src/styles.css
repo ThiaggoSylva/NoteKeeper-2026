@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+
+/*
+ * Sistema de estilos do NoteKeeper (Tailwind CSS 4).
+ * Paleta "orchid dusk": lilás e orquídea como cor de marca, creme de fundo e
+ * pastéis suaves (rosa, pêssego, manteiga, sálvia, menta, céu, lilás) nas notas.
+ */
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+
+  --color-ink: #2a2236;
+  --color-ink-soft: #5d5470;
+  --color-ink-mute: #8a8199;
+  --color-line: #ece6f3;
+  --color-cream: #fcf9f7;
+
+  --color-orchid-50: #faf7ff;
+  --color-orchid-100: #f1eafe;
+  --color-orchid-200: #e4d7fc;
+  --color-orchid-300: #cfb8f8;
+  --color-orchid-400: #b692f1;
+  --color-orchid-500: #9b6fe6;
+  --color-orchid-600: #8452d3;
+  --color-orchid-700: #6c3fb5;
+  --color-orchid-800: #583392;
+  --color-orchid-900: #3f2569;
+
+  --color-note-rose: #ffe4ec;
+  --color-note-rose-line: #f6c6d7;
+  --color-note-peach: #ffeadb;
+  --color-note-peach-line: #f7cfb0;
+  --color-note-butter: #fff6cf;
+  --color-note-butter-line: #efe09a;
+  --color-note-sage: #e3f1dd;
+  --color-note-sage-line: #c3dcb8;
+  --color-note-mint: #d9f3ee;
+  --color-note-mint-line: #b2e0d6;
+  --color-note-sky: #dff0ff;
+  --color-note-sky-line: #b9d8f3;
+  --color-note-lilac: #ece3ff;
+  --color-note-lilac-line: #d0bff6;
+  --color-note-cloud: #ffffff;
+  --color-note-cloud-line: #e7e0ee;
+
+  --shadow-soft: 0 1px 2px rgb(63 37 105 / 0.05), 0 8px 24px -8px rgb(63 37 105 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(63 37 105 / 0.06), 0 18px 40px -12px rgb(63 37 105 / 0.22);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream font-sans text-ink antialiased;
+    background-image:
+      radial-gradient(52rem 34rem at -5% -8%, rgb(228 215 252 / 0.65), transparent 60%),
+      radial-gradient(44rem 30rem at 105% 0%, rgb(255 226 208 / 0.6), transparent 58%),
+      radial-gradient(48rem 28rem at 50% 115%, rgb(214 240 232 / 0.55), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--color-orchid-200);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-orchid-600);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .campo {
+    @apply w-full rounded-2xl border border-line bg-white/90 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink-mute hover:border-orchid-300 focus:border-orchid-500 focus:ring-4 focus:ring-orchid-500/15 aria-[invalid=true]:border-rose-500;
+  }
+
+  .botao-primario {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-orchid-500 to-orchid-700 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-110 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60;
+  }
+
+  .botao-suave {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-ink-soft transition hover:bg-orchid-100 hover:text-orchid-800 disabled:cursor-wait disabled:opacity-60;
+  }
+
+  .botao-perigo {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-rose-700 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60;
+  }
+
+  .botao-icone {
+    @apply inline-grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-black/5 hover:text-orchid-800;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition;
+  }
+
+  .alerta-erro {
+    @apply rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm whitespace-pre-line text-rose-900;
+  }
+
+  .alerta-sucesso {
+    @apply rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
