@@ -1,0 +1,49 @@
+<div class="fixed inset-0 z-50 grid place-items-center p-4">
+  <div
+    class="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+    aria-hidden="true"
+    (click)="cancelar.emit()"
+  ></div>
+
+  <div
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="confirmar-titulo"
+    aria-describedby="confirmar-mensagem"
+    class="relative w-full max-w-sm rounded-3xl border border-line bg-white p-6 shadow-lift"
+  >
+    <span class="mb-4 grid size-12 place-items-center rounded-2xl bg-rose-50 text-rose-600">
+      <svg lucideTriangleAlert class="size-6" aria-hidden="true"></svg>
+    </span>
+
+    <h2 id="confirmar-titulo" class="font-display text-xl font-semibold text-ink">
+      {{ titulo() }}
+    </h2>
+    <p id="confirmar-mensagem" class="mt-2 text-sm leading-6 text-ink-soft">{{ mensagem() }}</p>
+
+    <div class="mt-6 flex justify-end gap-2">
+      <button
+        #botaoCancelar
+        type="button"
+        class="botao-suave"
+        [disabled]="processando()"
+        (click)="cancelar.emit()"
+      >
+        Cancelar
+      </button>
+
+      <button
+        type="button"
+        class="botao-perigo"
+        [disabled]="processando()"
+        [attr.aria-busy]="processando()"
+        (click)="confirmar.emit()"
+      >
+        @if (processando()) {
+          <svg lucideLoaderCircle class="size-4 animate-spin" aria-hidden="true"></svg>
+        }
+        {{ rotuloConfirmar() }}
+      </button>
+    </div>
+  </div>
+</div>

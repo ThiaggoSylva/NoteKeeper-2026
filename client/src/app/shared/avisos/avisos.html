@@ -1,0 +1,37 @@
+<div
+  class="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4"
+  aria-live="polite"
+>
+  @for (aviso of avisosService.avisos(); track aviso.id) {
+    <div
+      class="pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lift backdrop-blur"
+      [class]="
+        aviso.tipo === 'sucesso'
+          ? 'border-orchid-200 bg-white/95 text-ink'
+          : 'border-rose-200 bg-rose-50/95 text-rose-900'
+      "
+      [attr.role]="aviso.tipo === 'erro' ? 'alert' : 'status'"
+    >
+      @if (aviso.tipo === 'sucesso') {
+        <span class="grid size-6 shrink-0 place-items-center rounded-full bg-orchid-100 text-orchid-700">
+          <svg lucideCheck class="size-3.5" strokeWidth="2.5" aria-hidden="true"></svg>
+        </span>
+      } @else {
+        <span class="grid size-6 shrink-0 place-items-center rounded-full bg-rose-100 text-rose-700">
+          <svg lucideTriangleAlert class="size-3.5" strokeWidth="2.5" aria-hidden="true"></svg>
+        </span>
+      }
+
+      <span class="whitespace-pre-line">{{ aviso.mensagem }}</span>
+
+      <button
+        type="button"
+        class="botao-icone -mr-2 size-7 shrink-0"
+        aria-label="Fechar aviso"
+        (click)="avisosService.remover(aviso.id)"
+      >
+        <svg lucideX class="size-4" aria-hidden="true"></svg>
+      </button>
+    </div>
+  }
+</div>
