@@ -75,16 +75,32 @@ server/   API ASP.NET Core (.NET 10) — Clean Architecture, testes e migrations
 
 ## API (server)
 
-A API está em `server/` e usa .NET 10, ASP.NET Core Identity, JWT Bearer, EF Core e SQL Server. Para executar, configure uma connection string SQL Server e uma chave JWT (mínimo 32 bytes) usando User Secrets:
+A API está em `server/` e usa .NET 10, ASP.NET Core Identity, JWT Bearer, EF Core e SQL Server. Para executar, ela precisa de três User Secrets (ficam fora do repositório, em `~/.microsoft/usersecrets/NoteKeeper/secrets.json`):
+
+| Secret | Para que serve |
+| --- | --- |
+| `ConnectionStrings:SqlServer` | connection string do SQL Server |
+| `Jwt:SigningKey` | chave de assinatura do JWT (mínimo 32 bytes) |
+| `LuckyPenny:LicenseKey` | chave de licença do Lucky Penny (MediatR) |
+
+**Passo a passo (desenvolvimento local):**
 
 ```bash
-dotnet user-secrets set "ConnectionStrings:SqlServer" "<connection-string-sql-server>" --project server/src/Api/NoteKeeper.Api.csproj
-dotnet user-secrets set "Jwt:SigningKey" "<chave-aleatoria-com-pelo-menos-32-bytes>" --project server/src/Api/NoteKeeper.Api.csproj
-dotnet user-secrets set "LuckyPenny:LicenseKey" "<chave-de-licença-do-lucky-penny>" --project server/src/Api/NoteKeeper.Api.csproj
+# 1. SQL Server em Docker (senha do sa igual à usada pelo script abaixo)
+docker compose -f server/docker-compose.yml up -d
+
+# 2. User Secrets: usa o SQL do docker-compose, gera a Jwt:SigningKey e grava a licença
+LUCKYPENNY_LICENSE_KEY='<sua-chave>' ./server/scripts/setup-user-secrets.sh   # Linux e macOS
+# PowerShell:
+#   $env:LUCKYPENNY_LICENSE_KEY = "<sua-chave>"; .\server\scripts\setup-user-secrets.ps1
+
+# 3. Migrations e execução
 dotnet tool restore --tool-manifest server/dotnet-tools.json
 dotnet ef database update --project server/src/Infraestrutura/NoteKeeper.Infraestrutura.csproj --startup-project server/src/Api/NoteKeeper.Api.csproj
 dotnet run --project server/src/Api/NoteKeeper.Api.csproj
 ```
+
+O script não sobrescreve uma `Jwt:SigningKey` que já exista, e para usar outro SQL Server basta definir `NOTEKEEPER_SQL_CONNECTION` antes de rodá-lo. Para conferir os valores: `dotnet user-secrets list --project server/src/Api/NoteKeeper.Api.csproj`.
 
 Em desenvolvimento, a API aplica as migrations na inicialização. O Swagger/OpenAPI fica disponível em `/swagger`; exemplos de chamadas estão em `server/src/Api/NoteKeeper.Api.http`.
 
