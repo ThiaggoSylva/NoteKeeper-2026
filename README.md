@@ -184,43 +184,39 @@ npm --prefix client run build   # build de produção em client/dist/notekeeper/
 
 ## Publicação na Azure
 
-O projeto é publicado em três partes: **Azure SQL** (banco), **App Service** (API) e **Static Web Apps** (client).
+API e client são publicados **juntos, no mesmo Azure App Service**: o workflow compila o Angular e copia o resultado para o `wwwroot` do pacote da API. Como os dois ficam na mesma origem, não há CORS em produção e o client chama a API por caminhos relativos (`environment.urlApi` vazio).
 
-### 1. Banco e API
+Quando existe `wwwroot/index.html`, a API serve os arquivos do Angular e devolve o `index.html` quando o navegador abre uma rota do client (por exemplo, recarregar a página em `/notas` ou `/categorias`). As chamadas do Angular à API continuam chegando normalmente aos controllers. Em desenvolvimento essa pasta não existe e o client roda separado, com `npm start`.
 
-1. Crie um Azure SQL Database e um App Service (.NET 10).
-2. Configure o login OIDC do GitHub no App Service (Federated credentials).
-3. No GitHub, em *Settings → Secrets and variables → Actions*:
+### Recursos na Azure
 
-| Tipo | Nome | Valor |
-| --- | --- | --- |
-| Secret | `AZURE_SQL_CONNECTION_STRING` | connection string do Azure SQL (usada nas migrations e no App Service) |
-| Secret | `JWT_SIGNING_KEY` | chave aleatória com pelo menos 32 bytes (`openssl rand -base64 48`) |
-| Secret | `LUCKYPENNY_LICENSE_KEY` | chave de licença do MediatR (Lucky Penny) |
-| Secret | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | login OIDC (`azure/login@v2`) |
-| Variable | `AZURE_WEBAPP_NAME` | nome do App Service |
-| Variable | `AZURE_RESOURCE_GROUP` | grupo de recursos |
-| Variable | `CLIENT_URL` | `https://<hostname do Static Web App>` (sem barra no final), liberado no CORS |
+1. **Azure SQL Database** (banco de dados).
+2. **App Service** com runtime .NET 10 (Web App), que hospeda API e client.
+3. Login do GitHub no Azure por OIDC (*Deployment Center* ou *Federated credentials*).
 
-O workflow `.github/workflows/deploy-api-azure.yml` roda a cada push na `main` que altere `server/**`: `test` (bloqueia tudo se algum teste falhar), `build`, `migrate` (aplica as migrations no Azure SQL) e `deploy` (grava as App Settings e publica no App Service).
+### Configuração no GitHub
 
-### 2. Client
+Em *Settings → Secrets and variables → Actions → Secrets*:
 
-1. Crie o Static Web App (plano Free) e pegue o token de deploy:
+| Secret | Valor |
+| --- | --- |
+| `AZURE_SQL_CONNECTION_STRING` | connection string do Azure SQL (usada nas migrations e no App Service) |
+| `JWT_SIGNING_KEY` | chave aleatória com pelo menos 32 bytes (ex.: `openssl rand -base64 48`) |
+| `LUCKYPENNY_LICENSE_KEY` | chave de licença do MediatR (Lucky Penny) |
+| `AZURE_CLIENT_ID` | ID do aplicativo (client) do login OIDC |
+| `AZURE_TENANT_ID` | ID do tenant |
+| `AZURE_SUBSCRIPTION_ID` | ID da assinatura |
+| `AZURE_RESOURCE_GROUP` | grupo de recursos do App Service |
 
-```bash
-az staticwebapp create --name notekeeper-client --resource-group <RESOURCE_GROUP> --location eastus2 --sku Free
-az staticwebapp secrets list --name notekeeper-client --resource-group <RESOURCE_GROUP> --query properties.apiKey -o tsv
-az staticwebapp show --name notekeeper-client --resource-group <RESOURCE_GROUP> --query defaultHostname -o tsv
-```
+O nome do App Service fica em `APP_NAME` no topo de `.github/workflows/main_notekeeper-2026.yml`; troque `notekeeper-2026` pelo nome do seu Web App.
 
-2. No GitHub:
+### Workflow
 
-| Tipo | Nome | Valor |
-| --- | --- | --- |
-| Secret | `AZURE_STATIC_WEB_APPS_API_TOKEN` | token do comando acima |
-| Variable | `API_URL` | URL https da API, ex.: `https://<app>.azurewebsites.net` (sem barra no final) |
+`.github/workflows/main_notekeeper-2026.yml` roda a cada push na `main` que altere `server/**`, `client/**` ou os workflows (e também manualmente):
 
-O workflow `.github/workflows/deploy-client-azure.yml` grava `API_URL` em `environment.ts`, gera o build de produção e publica `client/dist/notekeeper/browser`. O arquivo `client/public/staticwebapp.config.json` faz o fallback das rotas do Angular para `index.html`.
+1. **Testes:** `dotnet test` da solução. Se falhar, nada é publicado.
+2. **Build e Publish:** compila o Angular (`client/dist/notekeeper/browser`), publica a API e copia o Angular para `publish/wwwroot`.
+3. **Migrations:** aplica as migrations do EF Core no Azure SQL (`dotnet ef`, versão do `server/dotnet-tools.json`).
+4. **Deploy:** faz login no Azure, grava as App Settings (`ConnectionStrings__SqlServer`, `Jwt__*`, `LuckyPenny__LicenseKey`) e publica o pacote no App Service.
 
-Ordem recomendada na primeira publicação: crie o Static Web App, configure as variáveis, publique a API e depois o client. Se o client abrir mas as chamadas falharem com erro de CORS, confira se `CLIENT_URL` está igual ao endereço do Static Web App.
+Depois do deploy, o app inteiro responde em `https://<app>.azurewebsites.net` (client na raiz, API em `/auth`, `/categorias` e `/notas`, Swagger em `/swagger`).
