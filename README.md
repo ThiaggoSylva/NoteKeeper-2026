@@ -13,6 +13,14 @@
 
 O NoteKeeper é uma aplicação para registrar e organizar anotações em um só lugar. A proposta é ajudar o usuário a guardar ideias e informações importantes de forma simples e fácil de encontrar. Para isso, as informações são organizadas em categorias e notas.
 
+## Estrutura do repositório
+
+```
+client/   Aplicação Angular 22 (Tailwind CSS 4, Signal Forms, Lucide)
+server/   API ASP.NET Core (.NET 10) — Clean Architecture, testes e migrations
+.github/  Workflows de deploy na Azure (API e client)
+```
+
 ## Módulo de Autenticação
 
 ### Requisitos funcionais
@@ -103,3 +111,116 @@ Build e testes:
 dotnet build server/NoteKeeper.slnx --configuration Release
 dotnet test server/NoteKeeper.slnx
 ```
+
+## Client (front-end)
+
+Aplicação Angular com visual inspirado no Google Keep, mas com identidade própria: paleta **orchid dusk** (lilás e orquídea como cor de marca, fundo creme e notas em tons pastel de rosa, pêssego, manteiga, sálvia, menta, céu e lilás), tipografia *Fraunces* nos títulos e *Plus Jakarta Sans* no texto.
+
+### Tecnologias
+
+| Tecnologia | Uso |
+| --- | --- |
+| Angular 22 (standalone, `@angular/build:application`) | Componentes, rotas com lazy loading e guardas funcionais |
+| Signal Forms (`@angular/forms/signals`) | Formulários e validações |
+| Tailwind CSS 4 (PostCSS) | Sistema de estilos: tokens de cor e fonte em `@theme` e classes reutilizáveis (`.campo`, `.botao-primario`, `.chip`...) em `styles.css` |
+| `@lucide/angular` | Ícones |
+| RxJS 7 | Requisições HTTP, busca e recarregamento de listas |
+
+### Telas
+
+| Rota | Acesso | Tela |
+| --- | --- | --- |
+| `/auth/login` | Visitante | Entrar com e-mail e senha (mostrar/ocultar senha) |
+| `/auth/cadastro` | Visitante | Criar conta com nome, e-mail e senha, validando as regras da API |
+| `/notas` | Autenticado | Notas ativas em mosaico, cartão "Criar uma nota" que expande ao clicar, busca no topo e filtro por categorias |
+| `/arquivadas` | Autenticado | Notas arquivadas, com opção de desarquivar |
+| `/categorias` | Autenticado | CRUD de categorias: criar, renomear na própria linha e excluir (as notas são mantidas) |
+
+Recursos de cada tela:
+
+- **Criar nota:** título (2 a 100 caracteres), descrição opcional (até 300, com contador) e categorias opcionais. A nota nasce com status **Ativa**.
+- **Editar nota:** abre em janela, permite alterar título, descrição, status (Ativa ou Arquivada) e categorias; `categoriaIds` vazio remove todas as categorias.
+- **Arquivar, desarquivar e excluir:** ações no cartão, com confirmação antes de excluir.
+- **Filtrar por categorias (1 ou mais):** selecione categorias no menu lateral. O filtro vai para a URL (`?categoriaIds=a&categoriaIds=b`) e a API devolve apenas as notas que estão em **todas** as categorias marcadas.
+- **Busca:** campo no topo que filtra por título, descrição e nome da categoria, ignorando acentos e maiúsculas.
+- **Erros da API:** títulos repetidos (409), validações por campo (400) e falhas de conexão aparecem em mensagens claras na própria tela.
+- **Sessão:** o nome do usuário aparece no topo; "Sair" chama `POST /auth/logout`, que revoga o token.
+
+### Rotas e guardas
+
+- `autenticadoGuard`: protege `/notas`, `/arquivadas` e `/categorias` (`canActivate` e `canActivateChild`). Sem sessão válida, redireciona para `/auth/login?returnUrl=...` e volta à página pedida após o login (apenas caminhos internos são aceitos).
+- `visitanteGuard`: quem já está logado é enviado de `/auth/**` para `/notas`.
+- `authInterceptor`: envia `Authorization: Bearer {token}` e encerra a sessão quando a API responde 401 (token expirado ou revogado).
+- Todas as telas são carregadas sob demanda (`loadComponent`).
+
+### Organização do código
+
+```
+client/src/app/
+  auth/         guardas, interceptor, AuthService, modelos e telas de login/cadastro
+  categorias/   CategoriasService (HTTP e cache em signal) e tela de gerenciamento
+  notas/        NotasService, listagem, cartão, criador, editor e seletor de categorias
+  layout/       moldura das telas privadas (barra superior, menu lateral e conteúdo)
+  shared/       avisos (toasts), diálogo de confirmação, sidebar, topbar e tratamento de erros
+```
+
+Os componentes cuidam só da apresentação; toda a comunicação com a API fica nos serviços (`AuthService`, `CategoriasService`, `NotasService`).
+
+### Como rodar o client
+
+Requer Node.js compatível com Angular 22 (>= 22.22.3, 24.15+ ou 26+) e npm. Com a API rodando em `http://localhost:5146`:
+
+```bash
+cd client
+npm ci
+npm start
+```
+
+O client abre em `http://localhost:4200`. Em desenvolvimento ele chama `/api/...` e o dev server encaminha para a API local (`client/proxy.conf.json`), então não é preciso configurar CORS. Se a API usar outra porta, ajuste o `target` do proxy.
+
+```bash
+npm --prefix client run build   # build de produção em client/dist/notekeeper/browser
+```
+
+## Publicação na Azure
+
+O projeto é publicado em três partes: **Azure SQL** (banco), **App Service** (API) e **Static Web Apps** (client).
+
+### 1. Banco e API
+
+1. Crie um Azure SQL Database e um App Service (.NET 10).
+2. Configure o login OIDC do GitHub no App Service (Federated credentials).
+3. No GitHub, em *Settings → Secrets and variables → Actions*:
+
+| Tipo | Nome | Valor |
+| --- | --- | --- |
+| Secret | `AZURE_SQL_CONNECTION_STRING` | connection string do Azure SQL (usada nas migrations e no App Service) |
+| Secret | `JWT_SIGNING_KEY` | chave aleatória com pelo menos 32 bytes (`openssl rand -base64 48`) |
+| Secret | `LUCKYPENNY_LICENSE_KEY` | chave de licença do MediatR (Lucky Penny) |
+| Secret | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | login OIDC (`azure/login@v2`) |
+| Variable | `AZURE_WEBAPP_NAME` | nome do App Service |
+| Variable | `AZURE_RESOURCE_GROUP` | grupo de recursos |
+| Variable | `CLIENT_URL` | `https://<hostname do Static Web App>` (sem barra no final), liberado no CORS |
+
+O workflow `.github/workflows/deploy-api-azure.yml` roda a cada push na `main` que altere `server/**`: `test` (bloqueia tudo se algum teste falhar), `build`, `migrate` (aplica as migrations no Azure SQL) e `deploy` (grava as App Settings e publica no App Service).
+
+### 2. Client
+
+1. Crie o Static Web App (plano Free) e pegue o token de deploy:
+
+```bash
+az staticwebapp create --name notekeeper-client --resource-group <RESOURCE_GROUP> --location eastus2 --sku Free
+az staticwebapp secrets list --name notekeeper-client --resource-group <RESOURCE_GROUP> --query properties.apiKey -o tsv
+az staticwebapp show --name notekeeper-client --resource-group <RESOURCE_GROUP> --query defaultHostname -o tsv
+```
+
+2. No GitHub:
+
+| Tipo | Nome | Valor |
+| --- | --- | --- |
+| Secret | `AZURE_STATIC_WEB_APPS_API_TOKEN` | token do comando acima |
+| Variable | `API_URL` | URL https da API, ex.: `https://<app>.azurewebsites.net` (sem barra no final) |
+
+O workflow `.github/workflows/deploy-client-azure.yml` grava `API_URL` em `environment.ts`, gera o build de produção e publica `client/dist/notekeeper/browser`. O arquivo `client/public/staticwebapp.config.json` faz o fallback das rotas do Angular para `index.html`.
+
+Ordem recomendada na primeira publicação: crie o Static Web App, configure as variáveis, publique a API e depois o client. Se o client abrir mas as chamadas falharem com erro de CORS, confira se `CLIENT_URL` está igual ao endereço do Static Web App.
