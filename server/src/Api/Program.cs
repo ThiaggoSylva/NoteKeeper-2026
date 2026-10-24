@@ -118,6 +118,40 @@ app.UseExceptionHandler(error => error.Run(async context =>
 app.UseStatusCodePages();
 app.UseHttpsRedirection();
 app.UseCors("Client");
+// Client Angular publicado em wwwroot pelo workflow de deploy (mesma origem da API).
+// Em desenvolvimento a pasta não existe e o client roda separado, com `ng serve`.
+var indexDoClient = string.IsNullOrEmpty(app.Environment.WebRootPath)
+    ? null
+    : Path.Combine(app.Environment.WebRootPath, "index.html");
+
+if (indexDoClient is not null && File.Exists(indexDoClient))
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+
+    // Algumas rotas do Angular (/notas, /categorias) coincidem com rotas GET da API.
+    // Quando é o navegador abrindo a página (Accept: text/html), devolve o index.html
+    // em vez do JSON da API; as chamadas XHR do Angular continuam chegando aos controllers.
+    app.Use(async (context, next) =>
+    {
+        var caminho = context.Request.Path;
+
+        var navegacaoDoNavegador = HttpMethods.IsGet(context.Request.Method)
+            && context.Request.Headers.Accept.ToString().Contains("text/html", StringComparison.OrdinalIgnoreCase)
+            && !caminho.StartsWithSegments("/swagger")
+            && !caminho.StartsWithSegments("/openapi");
+
+        if (!navegacaoDoNavegador)
+        {
+            await next();
+            return;
+        }
+
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.SendFileAsync(indexDoClient);
+    });
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
