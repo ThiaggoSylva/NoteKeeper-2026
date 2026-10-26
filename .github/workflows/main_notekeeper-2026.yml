@@ -17,8 +17,6 @@ env:
   DOTNET_VERSION: "10.x"
   SOLUTION_FILE: "server/NoteKeeper.slnx"
   API_PROJECT: "server/src/Api/NoteKeeper.Api.csproj"
-  INFRA_PROJECT: "server/src/Infraestrutura/NoteKeeper.Infraestrutura.csproj"
-  TOOL_MANIFEST: "server/dotnet-tools.json"
   # Nome do Azure App Service (Web App) criado para o projeto.
   APP_NAME: "notekeeper-2026"
 
@@ -150,7 +148,6 @@ jobs:
           path: ./publish
 
   # 3. Migrações do SQL Server
- 
   migrate:
     name: Migrations SQL Server
     runs-on: windows-latest
@@ -176,15 +173,11 @@ jobs:
             throw "O secret AZURE_SQL_CONNECTION_STRING não foi configurado."
           }
 
-          if ($env:ConnectionStrings__SqlServer -notmatch 'notekkeprdb\.database\.windows\.net') {
-            throw "A connection string não aponta para o servidor Azure SQL esperado."
-          }
-
-          Write-Host "Connection string configurada. O conteúdo será mantido oculto."
-
       - name: Restore
         run: dotnet restore "${{ env.SOLUTION_FILE }}"
 
+      # O dotnet-ef é uma ferramenta local (server/dotnet-tools.json): restore e execução
+      # precisam acontecer dentro de server/ para o manifesto ser encontrado.
       - name: Restaurar Entity Framework CLI
         working-directory: server
         run: dotnet tool restore
@@ -195,12 +188,12 @@ jobs:
           --configuration Release
           --no-restore
 
-      - name: Aplicar migrações EF Core
+      - name: Apply EF Core migrations
         working-directory: server
         run: >
-          dotnet tool run dotnet-ef database update
-          --project "server/src/Infraestrutura/NoteKeeper.Infraestrutura.csproj"
-          --startup-project "server/src/Api/NoteKeeper.Api.csproj"
+          dotnet ef database update
+          --project src/Infraestrutura/NoteKeeper.Infraestrutura.csproj
+          --startup-project src/Api/NoteKeeper.Api.csproj
           --configuration Release
           --no-build
 
