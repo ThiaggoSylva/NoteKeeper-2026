@@ -19,6 +19,8 @@ env:
   API_PROJECT: "server/src/Api/NoteKeeper.Api.csproj"
   # Nome do Azure App Service (Web App) criado para o projeto.
   APP_NAME: "notekeeper-2026"
+  # Nome (sem .database.windows.net) do servidor Azure SQL, usado para liberar o IP do runner nas migrations.
+  SQL_SERVER_NAME: "notekkeprdb"
 
 jobs:
   # 1. Testes automatizados
@@ -153,6 +155,10 @@ jobs:
     runs-on: windows-latest
     needs: build
 
+    permissions:
+      contents: read
+      id-token: write
+
     env:
       ConnectionStrings__SqlServer: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
       ASPNETCORE_ENVIRONMENT: Production
@@ -172,6 +178,34 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__SqlServer)) {
             throw "O secret AZURE_SQL_CONNECTION_STRING não foi configurado."
           }
+
+      - name: Login Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Libera só o IP deste runner no firewall do Azure SQL durante as migrations.
+      # Exige "Acesso à rede pública" habilitado no servidor (Selected networks).
+      - name: Liberar IP do runner no Azure SQL
+        shell: pwsh
+        run: |
+          $ip = (Invoke-RestMethod -Uri "https://api.ipify.org").Trim()
+          Write-Host "IP do runner: $ip"
+
+          az sql server firewall-rule create `
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" `
+            --server "${{ env.SQL_SERVER_NAME }}" `
+            --name "github-runner-${{ github.run_id }}" `
+            --start-ip-address $ip `
+            --end-ip-address $ip `
+            --output none
+
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao criar a regra de firewall do Azure SQL." }
+
+          # A regra leva alguns segundos para valer.
+          Start-Sleep -Seconds 30
 
       - name: Restore
         run: dotnet restore "${{ env.SOLUTION_FILE }}"
@@ -196,6 +230,16 @@ jobs:
           --startup-project src/Api/NoteKeeper.Api.csproj
           --configuration Release
           --no-build
+
+      - name: Remover IP do runner do Azure SQL
+        if: always()
+        shell: pwsh
+        run: |
+          az sql server firewall-rule delete `
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" `
+            --server "${{ env.SQL_SERVER_NAME }}" `
+            --name "github-runner-${{ github.run_id }}" `
+            --output none
 
   # 4. Configuração do Azure e deploy
   deploy:
