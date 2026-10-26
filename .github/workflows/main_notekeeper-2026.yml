@@ -150,6 +150,7 @@ jobs:
           path: ./publish
 
   # 3. Migrações do SQL Server
+ 
   migrate:
     name: Migrations SQL Server
     runs-on: windows-latest
@@ -175,19 +176,26 @@ jobs:
             throw "O secret AZURE_SQL_CONNECTION_STRING não foi configurado."
           }
 
+          if ($env:ConnectionStrings__SqlServer -notmatch 'notekkeprdb\.database\.windows\.net') {
+            throw "A connection string não aponta para o servidor Azure SQL esperado."
+          }
+
+          Write-Host "Connection string configurada. O conteúdo será mantido oculto."
+
       - name: Restore
         run: dotnet restore "${{ env.SOLUTION_FILE }}"
 
       - name: Restaurar Entity Framework CLI
         working-directory: server
         run: dotnet tool restore
+
       - name: Build API
         run: >
           dotnet build "${{ env.API_PROJECT }}"
           --configuration Release
           --no-restore
 
-      - name: Apply EF Core migrations
+      - name: Aplicar migrações EF Core
         working-directory: server
         run: >
           dotnet tool run dotnet-ef database update
