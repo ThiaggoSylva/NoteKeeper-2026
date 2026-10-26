@@ -179,8 +179,8 @@ jobs:
         run: dotnet restore "${{ env.SOLUTION_FILE }}"
 
       - name: Restaurar Entity Framework CLI
-        run: dotnet tool restore --tool-manifest "${{ env.TOOL_MANIFEST }}"
-
+        working-directory: server
+        run: dotnet tool restore
       - name: Build API
         run: >
           dotnet build "${{ env.API_PROJECT }}"
@@ -188,10 +188,11 @@ jobs:
           --no-restore
 
       - name: Apply EF Core migrations
+        working-directory: server
         run: >
           dotnet tool run dotnet-ef database update
-          --project "${{ env.INFRA_PROJECT }}"
-          --startup-project "${{ env.API_PROJECT }}"
+          --project "src/Infraestrutura/NoteKeeper.Infraestrutura.csproj"
+          --startup-project "src/Api/NoteKeeper.Api.csproj"
           --configuration Release
           --no-build
 
