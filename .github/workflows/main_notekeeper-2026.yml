@@ -199,8 +199,8 @@ jobs:
         working-directory: server
         run: >
           dotnet tool run dotnet-ef database update
-          --project "src/Infraestrutura/NoteKeeper.Infraestrutura.csproj"
-          --startup-project "src/Api/NoteKeeper.Api.csproj"
+          --project "server/src/Infraestrutura/NoteKeeper.Infraestrutura.csproj"
+          --startup-project "server/src/Api/NoteKeeper.Api.csproj"
           --configuration Release
           --no-build
 

@@ -17,7 +17,11 @@ public sealed class NoteKeeperDbContextFactory : IDesignTimeDbContextFactory<Not
             ?? "Server=localhost;Database=NoteKeeperDb;User Id=sa;Password=CrieUmaSenhaForte@123!;TrustServerCertificate=True";
 
         var options = new DbContextOptionsBuilder<NoteKeeperDbContext>()
-            .UseSqlServer(connection)
+            .UseSqlServer(connection, sqlOptions =>
+                sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null))
             .Options;
 
         return new NoteKeeperDbContext(options);
