@@ -1,274 +1,65 @@
-name: Build and deploy ASP.NET Core app to Azure Web App - notekeeper-2026
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy ASP.Net Core app to Azure Web App - notekeeper-2026
 
 on:
   push:
     branches:
-      - main
-    paths:
-      - "server/**"
-      - "client/**"
-      - ".github/workflows/**"
+      - 'main'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
-env:
-  DOTNET_VERSION: "10.x"
-  SOLUTION_FILE: "server/NoteKeeper.slnx"
-  API_PROJECT: "server/src/Api/NoteKeeper.Api.csproj"
-  INFRA_PROJECT: "server/src/Infraestrutura/NoteKeeper.Infraestrutura.csproj"
-  TOOL_MANIFEST: "server/dotnet-tools.json"
-  # Nome do Azure App Service (Web App) criado para o projeto.
-  APP_NAME: "notekeeper-2026"
-
 jobs:
-  # 1. Testes automatizados
-  test:
-    name: Testes
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Verificar solução
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "${{ env.SOLUTION_FILE }}")) {
-            Get-ChildItem -Path . -Recurse -Include *.sln,*.slnx,*.csproj |
-              Select-Object -ExpandProperty FullName
-            throw "Solução não encontrada: ${{ env.SOLUTION_FILE }}"
-          }
-
-      - name: Restore
-        run: dotnet restore "${{ env.SOLUTION_FILE }}"
-
-      - name: Test
-        run: >
-          dotnet test "${{ env.SOLUTION_FILE }}"
-          --configuration Release
-          --no-restore
-          --logger "trx;LogFileName=test-results.trx"
-          --results-directory ./TestResults
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: ./TestResults
-          if-no-files-found: ignore
-
-  # 2. Compilação e publicação (API + Angular no mesmo pacote)
   build:
-    name: Build e Publish
     runs-on: windows-latest
-    needs: test
+    permissions:
+      contents: read #This is required for actions/checkout
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: '10.x'
 
-      - name: Restore
-        run: dotnet restore "${{ env.SOLUTION_FILE }}"
+      - name: Build with dotnet
+        run: dotnet build --configuration Release
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22.22.3"
-          cache: npm
-          cache-dependency-path: client/package-lock.json
+      - name: dotnet publish
+        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
 
-      - name: Instalar dependências do Angular
-        working-directory: client
-        run: npm ci
-
-      - name: Compilar Angular
-        working-directory: client
-        run: npm run build -- --configuration production
-
-      - name: Build solution
-        run: >
-          dotnet build "${{ env.SOLUTION_FILE }}"
-          --configuration Release
-          --no-restore
-
-      - name: Publish API
-        run: >
-          dotnet publish "${{ env.API_PROJECT }}"
-          --configuration Release
-          --no-restore
-          --output ./publish
-
-      - name: Copiar Angular para wwwroot
-        shell: pwsh
-        run: |
-          $frontendPath = Join-Path $env:GITHUB_WORKSPACE "client/dist/notekeeper/browser"
-          $publishPath = Join-Path $env:GITHUB_WORKSPACE "publish"
-          $wwwrootPath = Join-Path $publishPath "wwwroot"
-
-          $indexPath = Join-Path $frontendPath "index.html"
-
-          if (-not (Test-Path -LiteralPath $indexPath -PathType Leaf)) {
-            throw "Angular não compilado. index.html esperado em: $indexPath"
-          }
-
-          # Remove eventual arquivo chamado wwwroot criado pelo publish.
-          if (Test-Path -LiteralPath $wwwrootPath -PathType Leaf) {
-            Remove-Item -LiteralPath $wwwrootPath -Force
-          }
-
-          New-Item -ItemType Directory -Path $wwwrootPath -Force | Out-Null
-
-          Copy-Item `
-            -Path (Join-Path $frontendPath "*") `
-            -Destination $wwwrootPath `
-            -Recurse `
-            -Force
-
-          if (-not (Test-Path -LiteralPath (Join-Path $wwwrootPath "index.html") -PathType Leaf)) {
-            throw "A cópia do Angular falhou: index.html ausente em $wwwrootPath"
-          }
-
-          Write-Host "Angular copiado para $wwwrootPath"
-
-      - name: Upload application
+      - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: webapp
-          path: ./publish
+          name: .net-app
+          path: ${{env.DOTNET_ROOT}}/myapp
 
-  # 3. Migrações do SQL Server
-  migrate:
-    name: Migrations SQL Server
+  deploy:
     runs-on: windows-latest
     needs: build
-
-    env:
-      ConnectionStrings__SqlServer: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
-      ASPNETCORE_ENVIRONMENT: Production
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Validar connection string
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__SqlServer)) {
-            throw "O secret AZURE_SQL_CONNECTION_STRING não foi configurado."
-          }
-
-      - name: Restore
-        run: dotnet restore "${{ env.SOLUTION_FILE }}"
-
-      - name: Restaurar Entity Framework CLI
-        run: dotnet tool restore --tool-manifest "${{ env.TOOL_MANIFEST }}"
-
-      - name: Build API
-        run: >
-          dotnet build "${{ env.API_PROJECT }}"
-          --configuration Release
-          --no-restore
-
-      - name: Apply EF Core migrations
-        run: >
-          dotnet tool run dotnet-ef database update
-          --project "${{ env.INFRA_PROJECT }}"
-          --startup-project "${{ env.API_PROJECT }}"
-          --configuration Release
-          --no-build
-
-  # 4. Configuração do Azure e deploy
-  deploy:
-    name: Configurar Azure e Deploy
-    runs-on: windows-latest
-    needs:
-      - build
-      - migrate
-
     permissions:
-      contents: read
-      id-token: write
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
 
     steps:
-      - name: Download application
+      - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: webapp
-          path: ./publish
-
-      - name: Login Azure
+          name: .net-app
+      
+      - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Configure Azure App Settings
-        shell: pwsh
-        env:
-          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
-          JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
-          LUCKYPENNY_LICENSE_KEY: ${{ secrets.LUCKYPENNY_LICENSE_KEY }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:AZURE_SQL_CONNECTION_STRING)) {
-            throw "AZURE_SQL_CONNECTION_STRING não foi configurado."
-          }
-
-          if ([string]::IsNullOrWhiteSpace($env:JWT_SIGNING_KEY)) {
-            throw "JWT_SIGNING_KEY não foi configurado."
-          }
-
-          # API e Angular rodam na mesma origem (wwwroot), então não é preciso configurar CORS.
-          $settings = @{
-            "ConnectionStrings__SqlServer" = $env:AZURE_SQL_CONNECTION_STRING
-            "Jwt__SigningKey"              = $env:JWT_SIGNING_KEY
-            "Jwt__Issuer"                  = "notekeeper-api"
-            "Jwt__Audience"                = "notekeeper-client"
-            "LuckyPenny__LicenseKey"       = $env:LUCKYPENNY_LICENSE_KEY
-          }
-
-          $settingsFile = Join-Path $env:RUNNER_TEMP "azure-appsettings.json"
-
-          try {
-            $settings |
-              ConvertTo-Json |
-              Set-Content -Path $settingsFile -Encoding utf8
-
-            az webapp config appsettings set `
-              --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" `
-              --name "${{ env.APP_NAME }}" `
-              --settings "@$settingsFile" `
-              --output none
-
-            if ($LASTEXITCODE -ne 0) {
-              throw "Falha ao configurar as variáveis do Azure App Service."
-            }
-          }
-          finally {
-            Remove-Item $settingsFile -Force -ErrorAction SilentlyContinue
-          }
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9260CE581E844AEA9EC38616A217916E }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4A53237CB9F041F5B48A5C377B7B032A }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_809D43BF5B72420B8D11373F283A6E27 }}
 
       - name: Deploy to Azure Web App
+        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.APP_NAME }}
-          slot-name: Production
-          package: ./publish
+          app-name: 'notekeeper-2026'
+          slot-name: 'Production'
+          package: .
+          
