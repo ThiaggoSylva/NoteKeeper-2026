@@ -235,4 +235,4 @@ O nome do App Service fica em `APP_NAME` no topo de `.github/workflows/main_note
 3. **Migrations:** aplica as migrations do EF Core no Azure SQL (`dotnet ef`, versão do `server/dotnet-tools.json`).
 4. **Deploy:** faz login no Azure, grava as App Settings (`ConnectionStrings__SqlServer`, `Jwt__*`, `LuckyPenny__LicenseKey`) e publica o pacote no App Service.
 
-Depois do deploy, o app inteiro responde em `https://<app>.azurewebsites.net` (client na raiz, API em `/auth`, `/categorias` e `/notas`, Swagger em `/swagger`).
+Depois do deploy, o app inteiro responde em ` https://notekeeper-2026-fwambsfhe8bxebh9.canadaeast-01.azurewebsites.net` (client na raiz, API em `/auth`, `/categorias` e `/notas`, Swagger em `/swagger`).
